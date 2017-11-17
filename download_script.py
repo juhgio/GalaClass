@@ -69,6 +69,8 @@ if __name__=="__main__":
 
     fnames = glob.glob("./*.fits")
     for fname in fnames:
+        print(fname)
+    quit()
 
 # Create the lists for each column in the catalogue
 # Identifications and imaging info
