@@ -60,7 +60,6 @@ for ii in range(1):
 	i_url = 'https://dr12.sdss.org/sas/dr12/boss/photoObj/frames/301/%s/%s/frame-i-%06d-%s-%04d.fits.bz2' % (run0, camcol0, run0, camcol0, field0)
 	z_url = 'https://dr12.sdss.org/sas/dr12/boss/photoObj/frames/301/%s/%s/frame-z-%06d-%s-%04d.fits.bz2' % (run0, camcol0, run0, camcol0, field0)
 	
-	
 	# Download the images using wget 
 	os.system('wget %s' % u_url)
 	os.system('wget %s' % g_url)
