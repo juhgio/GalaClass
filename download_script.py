@@ -1,46 +1,53 @@
 # -*- coding: utf-8 -*-
 # author: Juho-Petteri Lesonen, 17.11.2017
 
-import pandas as pd
+#import pandas as pd
 from astropy.io import fits
 from astropy import wcs
 import os
 import numpy as np
 
+def get_frame_name(band, run, camcol, field,
+        frame_base="frame-%s-%06d-%s-%04d.fits"):
+    return frame_base % (band, run, camcol, field)
+
+def get_image(frame_name, run, camcol,
+        url_base="https://dr12.sdss.org/sas/dr12/boss/photoObj/frames/301/%s/%s/%s.bz2"):
+    url = url_base % (run, camcol, frame_name)
+    # -v flag for verbosity
+    os.system("wget -v %s" % url)
+
 # Import the catalogue CSV
-df = pd.read_csv('karsittu_tiedot_all_lista_csv.csv')
+#df = pd.read_csv('karsittu_tiedot_all_lista_csv.csv')
 
 # Create the lists for each column in the catalogue
 # Identifications and imaging info
-ID = df['specobjid']
-run = df['run']
-rerun = df['rerun']
-camcol = df['camcol']
-field = df['field']
-obj = df['obj']
-
-# Object coordinates
-RA = df['Column2']
-DEC = df['Column3']
-
-# Petrosian90% radius
-R90_u = df['petroR90_u']
-R90_g = df['petroR90_g']
-R90_r = df['petroR90_r']
-R90_i = df['petroR90_i']
-R90_z = df['petroR90_z']
-
+INTERESTING_BANDS = ('u', 'g', 'r', 'i', 'z')
+INTERESTING_FIELDS = ['specobjid', 'run', 'rerun', 'camcol', 'field', 'obj',
+        'Column2', 'Column3']
+INTERESTING_FIELDS.extend(['PetrosR90_%s' % b for b in INTERESTING_BANDS])
 pixel_size = 0.396
 
 # Create empty lists for the whole catalogue and for the URL-address catalogue
-image_directories = []
+# We are interested in object_directories values.
 object_directories = []
 
-# Loop for the lists
-for x in range(len(ID)):
-	image_directories.append([ID[x], run[x], rerun[x], camcol[x], field[x], obj[x], RA[x], DEC[x], 
-	R90_u[x], R90_g[x], R90_r[x], R90_i[x], R90_z[x]])
-	object_directories.append([run[x], rerun[x], camcol[x], field[x]])
+for d in data:
+
+    interesting_data = [d[field] for field in INTERESTING_FIELDS]
+
+    run = interesting_data[1]
+    camcol = interesting_data[3]
+    field = interesting_data[4]
+
+    frames = [get_frame_name(band, run, camcol, field) for band in INTERESTING_BANDS]
+
+    for frame in frames:
+        get_image(frame, run, camcol)
+
+    #os.system('bzip2 -dk *.bz2')
+    #os.system('rm -r *.bz2')
+    os.system("bzip2 -d *.bz2")
 
 # Find the every unique combination of run, camcol and field parameters to create the download url
 uniq_object_directories = list(map(list, set(map(tuple, object_directories))))
@@ -68,8 +75,7 @@ for ii in range(1):
 	os.system('wget %s' % z_url)
 	
 	# Unzip downloaded files and remove compressed items
-	os.system('bzip2 -dk *.bz2')
-	os.system('rm -r *.bz2')
+
 	
 	# Define files, headers and word-coordinate-system calibration
 	
