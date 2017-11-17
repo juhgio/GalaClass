@@ -1,53 +1,83 @@
 # -*- coding: utf-8 -*-
 # author: Juho-Petteri Lesonen, 17.11.2017
 
-#import pandas as pd
+import pandas as pd
 from astropy.io import fits
 from astropy import wcs
 import os
 import numpy as np
+from sys import argv
+import glob as glob
+
+USAGE =\
+"""
+Fetch a shitton of data and crop some mfucking pictures\n\tUsage: %s \
+[csv filename]\
+
+"""
+if len(argv) != 2:
+    print(USAGE % argv[0])
+    quit()
+
+# "Globals"
+CSV_FILE = argv[1]
+ALL_COLUMNS = None
+with open(argv[1], 'r') as f:
+    ALL_COLUMNS = f.readline().strip().split(',')
+INTERESTING_BANDS = ('u', 'g', 'r', 'i', 'z')
+INTERESTING_FIELDS = ['specobjid', 'run', 'rerun', 'camcol', 'field', 'obj',
+        'Column2', 'Column3']
+INTERESTING_FIELDS.extend(['petroR90_%s' % b for b in INTERESTING_BANDS])
+INTERESTING_COLUMNS = [ALL_COLUMNS.index(a) for a in INTERESTING_FIELDS]
+
 
 def get_frame_name(band, run, camcol, field,
-        frame_base="frame-%s-%06d-%s-%04d.fits"):
+        frame_base="frame-%s-%06d-%d-%04d.fits"):
     return frame_base % (band, run, camcol, field)
 
+
 def get_image(frame_name, run, camcol,
-        url_base="https://dr12.sdss.org/sas/dr12/boss/photoObj/frames/301/%s/%s/%s.bz2"):
+        url_base="https://dr12.sdss.org/sas/dr12/boss/photoObj/frames/301/%d/%d/%s.bz2"):
     url = url_base % (run, camcol, frame_name)
     # -v flag for verbosity
     os.system("wget -v %s" % url)
 
-# Import the catalogue CSV
-#df = pd.read_csv('karsittu_tiedot_all_lista_csv.csv')
+
+def fetch_data(datarow):
+    row, data = datarow
+    frames = [get_frame_name(band, data.run, data.camcol, data.field)
+              for band in INTERESTING_BANDS]
+    for frame in frames:
+        get_image(frame, data.run, data.camcol)
+
+
+def fetch_all_data(csv_fname):
+    df = pd.read_csv(csv_fname, header=0, usecols=INTERESTING_COLUMNS)
+    for datarow in df.iterrows():
+        fetch_data(datarow)
+    os.system("bzip2 -dv *.bz2")
+
+
+if __name__=="__main__":
+
+    # Get the data
+    fetch_all_data(CSV_FILE)
+
+    # Go through the data 
+    PIXEL_SIZE = 0.396
+    imagescale = 2.0
+
+    fnames = glob.glob("./*.fits")
+    for fname in fnames:
 
 # Create the lists for each column in the catalogue
 # Identifications and imaging info
-INTERESTING_BANDS = ('u', 'g', 'r', 'i', 'z')
-INTERESTING_FIELDS = ['specobjid', 'run', 'rerun', 'camcol', 'field', 'obj',
-        'Column2', 'Column3']
-INTERESTING_FIELDS.extend(['PetrosR90_%s' % b for b in INTERESTING_BANDS])
-pixel_size = 0.396
 
-# Create empty lists for the whole catalogue and for the URL-address catalogue
-# We are interested in object_directories values.
 object_directories = []
 
-for d in data:
 
-    interesting_data = [d[field] for field in INTERESTING_FIELDS]
 
-    run = interesting_data[1]
-    camcol = interesting_data[3]
-    field = interesting_data[4]
 
-    frames = [get_frame_name(band, run, camcol, field) for band in INTERESTING_BANDS]
-
-    for frame in frames:
-        get_image(frame, run, camcol)
-
-    #os.system('bzip2 -dk *.bz2')
-    #os.system('rm -r *.bz2')
-    os.system("bzip2 -d *.bz2")
 
 # Find the every unique combination of run, camcol and field parameters to create the download url
 uniq_object_directories = list(map(list, set(map(tuple, object_directories))))
@@ -111,7 +141,6 @@ for ii in range(1):
 	
 	
 	# Image scaled according to the Petrosian 90% radius.
-	imagescale = 2.0
 	
 	# Loop for each object within the same field-image
 	for iii in range(len(indices)):
